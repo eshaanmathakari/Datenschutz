@@ -1,0 +1,10 @@
+body { background: #0b0f10; color: #c7d1d8; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.container { max-width: 900px; margin: 24px auto; padding: 0 12px; }
+h2 { color: #9ad1ff; font-weight: 600; }
+.controls { margin-bottom: 12px; display: flex; gap: 8px; }
+input#path { flex: 1; background: #0f1416; color: #dfe7ec; border: 1px solid #2b3a42; padding: 8px; border-radius: 6px; }
+button#scanBtn { background: #2867c6; border: none; color: white; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
+button#scanBtn:hover { background: #2f76e3; }
+.terminal { background: #0f1416; border: 1px solid #2b3a42; border-radius: 6px; padding: 12px; min-height: 360px; white-space: pre-wrap; }
+
+
