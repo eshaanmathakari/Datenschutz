@@ -1,0 +1,300 @@
+name: Deploy to Microsoft Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+      region:
+        description: 'Azure Region'
+        required: true
+        default: 'East US'
+        type: choice
+        options:
+        - East US
+        - West US 2
+        - West Europe
+        - Southeast Asia
+  release:
+    types: [published]
+
+env:
+  AZURE_RESOURCE_GROUP: datenschutz-${{ github.event.inputs.environment || 'production' }}
+  AZURE_LOCATION: ${{ github.event.inputs.region || 'East US' }}
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
+  APP_NAME: datenschutz-analyzer
+  CONTAINER_APP_NAME: datenschutz-analyzer
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    name: Deploy to Azure Container Apps
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Login to Azure Container Registry
+      run: |
+        az acr login --name ${{ secrets.AZURE_REGISTRY_NAME }}
+
+    - name: Build and push Docker image
+      id: build-image
+      env:
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        IMAGE_URI="${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io/${{ env.APP_NAME }}:$IMAGE_TAG"
+        
+        # Build the Docker image
+        docker build -t $IMAGE_URI .
+        
+        # Push to Azure Container Registry
+        docker push $IMAGE_URI
+        
+        echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+    - name: Create Resource Group
+      run: |
+        az group create \
+          --name ${{ env.AZURE_RESOURCE_GROUP }} \
+          --location "${{ env.AZURE_LOCATION }}"
+
+    - name: Create Container Apps Environment
+      run: |
+        # Check if environment exists
+        if ! az containerapp env show \
+          --name datenschutz-${{ env.ENVIRONMENT }}-env \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --output none 2>/dev/null; then
+          
+          az containerapp env create \
+            --name datenschutz-${{ env.ENVIRONMENT }}-env \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location "${{ env.AZURE_LOCATION }}"
+        fi
+
+    - name: Create Application Insights
+      run: |
+        # Check if Application Insights exists
+        if ! az monitor app-insights component show \
+          --app datenschutz-${{ env.ENVIRONMENT }}-insights \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --output none 2>/dev/null; then
+          
+          az monitor app-insights component create \
+            --app datenschutz-${{ env.ENVIRONMENT }}-insights \
+            --location "${{ env.AZURE_LOCATION }}" \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --kind web
+        fi
+        
+        APPINSIGHTS_KEY=$(az monitor app-insights component show \
+          --app datenschutz-${{ env.ENVIRONMENT }}-insights \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --query "instrumentationKey" \
+          --output tsv)
+        
+        echo "APPINSIGHTS_INSTRUMENTATIONKEY=$APPINSIGHTS_KEY" >> $GITHUB_ENV
+
+    - name: Deploy Container App
+      id: deploy
+      run: |
+        # Check if container app exists
+        if az containerapp show \
+          --name ${{ env.CONTAINER_APP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --output none 2>/dev/null; then
+          
+          # Update existing app
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ steps.build-image.outputs.image-uri }} \
+            --set-env-vars \
+              PORT=4001 \
+              MODEL_BACKEND="${{ secrets.MODEL_BACKEND }}" \
+              LOG_RETENTION_DAYS=30 \
+              APPINSIGHTS_INSTRUMENTATIONKEY="$APPINSIGHTS_INSTRUMENTATIONKEY"
+        else
+          # Create new app
+          az containerapp create \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --environment datenschutz-${{ env.ENVIRONMENT }}-env \
+            --image ${{ steps.build-image.outputs.image-uri }} \
+            --target-port 4001 \
+            --ingress external \
+            --cpu 0.5 \
+            --memory 1Gi \
+            --min-replicas 0 \
+            --max-replicas 5 \
+            --env-vars \
+              PORT=4001 \
+              MODEL_BACKEND="${{ secrets.MODEL_BACKEND }}" \
+              LOG_RETENTION_DAYS=30 \
+              APPINSIGHTS_INSTRUMENTATIONKEY="$APPINSIGHTS_INSTRUMENTATIONKEY"
+        fi
+        
+        # Get the app URL
+        APP_URL=$(az containerapp show \
+          --name ${{ env.CONTAINER_APP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --query "properties.configuration.ingress.fqdn" \
+          --output tsv)
+        
+        echo "app-url=https://$APP_URL" >> $GITHUB_OUTPUT
+        echo "Container App deployed at: https://$APP_URL"
+
+    - name: Run deployment verification
+      run: |
+        sleep 45  # Wait for container to start
+        
+        HEALTH_URL="${{ steps.deploy.outputs.app-url }}/health"
+        echo "Testing health endpoint: $HEALTH_URL"
+        
+        # Test health endpoint with retries
+        for i in {1..10}; do
+          if curl -f "$HEALTH_URL"; then
+            echo "✅ Deployment verification successful!"
+            exit 0
+          fi
+          echo "Attempt $i failed, retrying in 20 seconds..."
+          sleep 20
+        done
+        
+        echo "❌ Deployment verification failed"
+        exit 1
+
+  setup-database:
+    name: Set up Azure Database
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'production'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Create PostgreSQL server
+      run: |
+        # Check if PostgreSQL server exists
+        if ! az postgres server show \
+          --name datenschutz-${{ env.ENVIRONMENT }}-db \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --output none 2>/dev/null; then
+          
+          az postgres server create \
+            --name datenschutz-${{ env.ENVIRONMENT }}-db \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location "${{ env.AZURE_LOCATION }}" \
+            --admin-user datenschutz \
+            --admin-password "${{ secrets.DB_PASSWORD }}" \
+            --sku-name B_Gen5_1 \
+            --storage-size 5120 \
+            --version 11
+        fi
+
+    - name: Configure firewall rules
+      run: |
+        # Allow Azure services
+        az postgres server firewall-rule create \
+          --server-name datenschutz-${{ env.ENVIRONMENT }}-db \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --name "AllowAzureServices" \
+          --start-ip-address 0.0.0.0 \
+          --end-ip-address 0.0.0.0 || true
+
+    - name: Create database
+      run: |
+        az postgres db create \
+          --server-name datenschutz-${{ env.ENVIRONMENT }}-db \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --name datenschutz || true
+
+  setup-monitoring:
+    name: Set up Azure Monitoring
+    runs-on: ubuntu-latest
+    needs: deploy
+    
+    steps:
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Create availability test
+      run: |
+        # Create web test for health monitoring
+        az monitor app-insights web-test create \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --name "datenschutz-${{ env.ENVIRONMENT }}-health-test" \
+          --location "${{ env.AZURE_LOCATION }}" \
+          --app-insights-name datenschutz-${{ env.ENVIRONMENT }}-insights \
+          --web-test-kind ping \
+          --frequency 300 \
+          --timeout 120 \
+          --enabled true \
+          --retry-enabled true \
+          --locations '[{"Id":"us-va-ash-azr"}]' \
+          --url "${{ needs.deploy.outputs.app-url }}/health" || true
+
+    - name: Create action group
+      run: |
+        # Create action group for alerts
+        az monitor action-group create \
+          --name datenschutz-${{ env.ENVIRONMENT }}-alerts \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --short-name ds-alerts \
+          --email-receivers name=admin email=${{ secrets.ALERT_EMAIL }} || true
+
+    - name: Create metric alerts
+      run: |
+        # Alert for high response time
+        az monitor metrics alert create \
+          --name "High Response Time" \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --scopes "/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_RESOURCE_GROUP }}/providers/Microsoft.App/containerApps/${{ env.CONTAINER_APP_NAME }}" \
+          --condition "avg HttpResponseTime > 5000" \
+          --description "Alert when response time is high" \
+          --evaluation-frequency 1m \
+          --window-size 5m \
+          --severity 2 \
+          --action datenschutz-${{ env.ENVIRONMENT }}-alerts || true
+
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy, setup-database, setup-monitoring]
+    if: always()
+    
+    steps:
+    - name: Notify success
+      if: needs.deploy.result == 'success'
+      run: |
+        echo "✅ Successfully deployed to Azure ${{ env.ENVIRONMENT }} environment!"
+        echo "App URL: ${{ needs.deploy.outputs.app-url }}"
+        
+    - name: Notify failure
+      if: needs.deploy.result == 'failure'
+      run: |
+        echo "❌ Azure deployment failed. Check the logs for details."

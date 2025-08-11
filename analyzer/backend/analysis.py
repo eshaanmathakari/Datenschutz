@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 
 from .model_provider import get_model
 from .prompts import render_prompt
+from .vulnerability_mapping import enhance_issue_with_mapping
 
 
 def analyze_chunks(chunks: List[Dict[str, str]], options: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -23,7 +24,9 @@ def analyze_chunks(chunks: List[Dict[str, str]], options: Dict[str, Any]) -> Lis
         parsed = _parse_output(raw)
         for iss in parsed:
             iss.setdefault("file_path", item["file_path"])
-            issues.append(iss)
+            # Enhance with vulnerability mapping
+            enhanced_iss = enhance_issue_with_mapping(iss)
+            issues.append(enhanced_iss)
     return issues
 
 
