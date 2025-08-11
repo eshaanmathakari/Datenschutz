@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 from .model_provider import get_model
 from .prompts import render_prompt
 from .vulnerability_mapping import enhance_issue_with_mapping
+from .rule_based_detector import analyze_with_rules
 
 
 def analyze_chunks(chunks: List[Dict[str, str]], options: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -13,20 +14,28 @@ def analyze_chunks(chunks: List[Dict[str, str]], options: Dict[str, Any]) -> Lis
 
     model = get_model()
     issues: List[Dict[str, Any]] = []
+    
     for item in chunks:
-        prompt = render_prompt(
-            language=item["language"],
-            file_path=item["file_path"],
-            code_chunk=item["content"],
-            reasoning=reasoning,
-        )
-        raw = model.generate(prompt, max_new_tokens=max_new_tokens, temperature=temperature)
-        parsed = _parse_output(raw)
-        for iss in parsed:
-            iss.setdefault("file_path", item["file_path"])
-            # Enhance with vulnerability mapping
-            enhanced_iss = enhance_issue_with_mapping(iss)
-            issues.append(enhanced_iss)
+        # First try AI model analysis
+        if model.backend != "none":
+            prompt = render_prompt(
+                language=item["language"],
+                file_path=item["file_path"],
+                code_chunk=item["content"],
+                reasoning=reasoning,
+            )
+            raw = model.generate(prompt, max_new_tokens=max_new_tokens, temperature=temperature)
+            parsed = _parse_output(raw)
+            for iss in parsed:
+                iss.setdefault("file_path", item["file_path"])
+                # Enhance with vulnerability mapping
+                enhanced_iss = enhance_issue_with_mapping(iss)
+                issues.append(enhanced_iss)
+        
+        # Always run rule-based detection as backup or primary method
+        rule_issues = analyze_with_rules(item["file_path"], item["content"])
+        issues.extend(rule_issues)
+    
     return issues
 
 

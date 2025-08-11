@@ -49,7 +49,12 @@ def scan_project(
     chunk_max_lines: int,
     chunk_overlap_lines: int,
 ) -> List[Dict[str, str]]:
-    files = iter_code_files(base_path, include_exts)
+    # Check if base_path is a single file
+    if os.path.isfile(base_path):
+        files = [base_path]
+    else:
+        files = iter_code_files(base_path, include_exts)
+    
     results: List[Dict[str, str]] = []
     size_limit = max_file_mb * 1024 * 1024
 
