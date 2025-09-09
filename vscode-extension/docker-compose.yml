@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  datenschutz-extension:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: datenschutz-vscode-extension
+    ports:
+      - "4001:4001"
+    volumes:
+      # Mount workspace for scanning
+      - ./workspace:/workspace:ro
+      # Mount models directory for LLM files
+      - ./models:/app/models:ro
+      # Mount logs directory for persistence
+      - ./logs:/app/fix_logs
+      # Mount backups directory
+      - ./backups:/app/.datenschutz_backups
+    environment:
+      - MODEL_BACKEND=${MODEL_BACKEND:-none}
+      - MODEL_PATH=${MODEL_PATH:-/app/models/model.gguf}
+      - HF_MODEL=${HF_MODEL:-microsoft/CodeBERT-base}
+      - DEFAULT_SCAN_PATH=/workspace
+      - LOG_RETENTION_DAYS=14
+      - LLAMA_THREADS=4
+      - HF_DEVICE_MAP=auto
+      - HF_LOAD_IN_8BIT=true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add a web interface service
+  datenschutz-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: datenschutz-web-interface
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./workspace:/workspace:ro
+      - ./models:/app/models:ro
+    environment:
+      - MODEL_BACKEND=${MODEL_BACKEND:-none}
+      - MODEL_PATH=${MODEL_PATH:-/app/models/model.gguf}
+      - HF_MODEL=${HF_MODEL:-microsoft/CodeBERT-base}
+    depends_on:
+      - datenschutz-extension
+    restart: unless-stopped
+
+  # Optional: Add a model downloader service
+  model-downloader:
+    image: python:3.11-slim
+    container_name: datenschutz-model-downloader
+    volumes:
+      - ./models:/models
+      - ./scripts:/scripts
+    environment:
+      - HF_MODEL=${HF_MODEL:-microsoft/CodeBERT-base}
+    command: >
+      sh -c "
+        pip install huggingface-hub &&
+        python /scripts/download_model.py
+      "
+    restart: "no"
+
+volumes:
+  models:
+  logs:
+  backups:

@@ -1,0 +1,173 @@
+{
+  "name": "datenschutz-security-scanner",
+  "displayName": "Datenschutz Security Scanner",
+  "description": "AI-powered security vulnerability scanner with local LLM support",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:datenschutz.scanWorkspace",
+    "onCommand:datenschutz.scanFile",
+    "onCommand:datenschutz.applyFix",
+    "onLanguage:python",
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:solidity"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "datenschutz.scanWorkspace",
+        "title": "Scan Workspace for Security Issues",
+        "category": "Datenschutz"
+      },
+      {
+        "command": "datenschutz.scanFile",
+        "title": "Scan Current File for Security Issues",
+        "category": "Datenschutz"
+      },
+      {
+        "command": "datenschutz.applyFix",
+        "title": "Apply Fix",
+        "category": "Datenschutz"
+      },
+      {
+        "command": "datenschutz.configureModel",
+        "title": "Configure LLM Model",
+        "category": "Datenschutz"
+      },
+      {
+        "command": "datenschutz.showReport",
+        "title": "Show Security Report",
+        "category": "Datenschutz"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "datenschutz.scanFile",
+          "when": "resourceExtname == '.py' || resourceExtname == '.js' || resourceExtname == '.ts' || resourceExtname == '.sol'",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "datenschutz.scanFile",
+          "when": "resourceExtname == '.py' || resourceExtname == '.js' || resourceExtname == '.ts' || resourceExtname == '.sol'",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Datenschutz Security Scanner",
+      "properties": {
+        "datenschutz.modelBackend": {
+          "type": "string",
+          "default": "none",
+          "enum": ["none", "llama_cpp", "transformers"],
+          "description": "LLM backend to use for analysis"
+        },
+        "datenschutz.modelPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the LLM model file (for llama_cpp backend)"
+        },
+        "datenschutz.hfModel": {
+          "type": "string",
+          "default": "",
+          "description": "Hugging Face model name (for transformers backend)"
+        },
+        "datenschutz.includeExtensions": {
+          "type": "array",
+          "default": [".py", ".js", ".jsx", ".ts", ".tsx", ".sol"],
+          "description": "File extensions to scan"
+        },
+        "datenschutz.maxFileSize": {
+          "type": "number",
+          "default": 1.5,
+          "description": "Maximum file size in MB to scan"
+        },
+        "datenschutz.chunkMaxLines": {
+          "type": "number",
+          "default": 400,
+          "description": "Maximum lines per code chunk"
+        },
+        "datenschutz.temperature": {
+          "type": "number",
+          "default": 0.2,
+          "description": "LLM temperature for generation"
+        },
+        "datenschutz.enableRuleBased": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable rule-based detection as backup"
+        },
+        "datenschutz.autoScanOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically scan files when they are saved"
+        },
+        "datenschutz.logRetentionDays": {
+          "type": "number",
+          "default": 14,
+          "description": "Number of days to keep fix logs"
+        },
+        "datenschutz.llamaThreads": {
+          "type": "number",
+          "default": 6,
+          "description": "Number of threads for llama.cpp backend"
+        },
+        "datenschutz.hfDeviceMap": {
+          "type": "string",
+          "default": "auto",
+          "description": "Device mapping for Hugging Face transformers"
+        },
+        "datenschutz.hfLoadIn8bit": {
+          "type": "boolean",
+          "default": true,
+          "description": "Load Hugging Face models in 8-bit mode"
+        }
+      }
+    },
+    "problemMatchers": [
+      {
+        "name": "datenschutz",
+        "owner": "datenschutz",
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+):\\s+(\\w+)\\s+(.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.0",
+    "eslint": "^8.26.0",
+    "typescript": "^4.8.4"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "python-shell": "^5.0.0"
+  }
+}

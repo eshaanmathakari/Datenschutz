@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datenschutz Security Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .scan-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .scan-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .scan-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .scan-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .issue-card {
+            background: white;
+            border-left: 4px solid #ddd;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .issue-card.critical {
+            border-left-color: #dc3545;
+        }
+
+        .issue-card.high {
+            border-left-color: #fd7e14;
+        }
+
+        .issue-card.medium {
+            border-left-color: #ffc107;
+        }
+
+        .issue-card.low {
+            border-left-color: #28a745;
+        }
+
+        .issue-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .issue-meta {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .issue-description {
+            margin-bottom: 1rem;
+        }
+
+        .issue-suggestion {
+            background: #f8f9fa;
+            padding: 0.5rem;
+            border-radius: 3px;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .fix-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .fix-button:hover {
+            background: #218838;
+        }
+
+        .fix-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .config-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .config-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .config-label {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .config-value {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background: #f8f9fa;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Datenschutz Security Scanner</h1>
+            <p>AI-Powered Security Vulnerability Detection</p>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalScans">-</div>
+                <div class="stat-label">Total Scans</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalIssues">-</div>
+                <div class="stat-label">Total Issues</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="criticalIssues">-</div>
+                <div class="stat-label">Critical Issues</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="lastScan">-</div>
+                <div class="stat-label">Last Scan</div>
+            </div>
+        </div>
+
+        <div class="scan-section">
+            <h2>🔍 Security Scan</h2>
+            <p>Scan your workspace for security vulnerabilities using AI-powered analysis.</p>
+            <button class="scan-button" onclick="startScan()" id="scanButton">
+                Start Security Scan
+            </button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Scanning workspace for security issues...</p>
+            </div>
+
+            <div class="results" id="results">
+                <h3>Scan Results</h3>
+                <div id="scanSummary"></div>
+                <div id="issuesList"></div>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h2>⚙️ Configuration</h2>
+            <div class="config-grid" id="configGrid">
+                <!-- Configuration will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentScanId = null;
+
+        // Load initial data
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStats();
+            loadConfig();
+        });
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                
+                document.getElementById('totalScans').textContent = stats.total_scans || 0;
+                document.getElementById('totalIssues').textContent = stats.total_issues || 0;
+                document.getElementById('criticalIssues').textContent = stats.severity_counts?.critical || 0;
+                document.getElementById('lastScan').textContent = stats.last_scan ? 
+                    new Date(stats.last_scan).toLocaleDateString() : 'Never';
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                
+                const configGrid = document.getElementById('configGrid');
+                configGrid.innerHTML = '';
+                
+                for (const [key, value] of Object.entries(config)) {
+                    const configItem = document.createElement('div');
+                    configItem.className = 'config-item';
+                    configItem.innerHTML = `
+                        <div class="config-label">${key.replace(/_/g, ' ').toUpperCase()}</div>
+                        <div class="config-value">${value || 'Not set'}</div>
+                    `;
+                    configGrid.appendChild(configItem);
+                }
+            } catch (error) {
+                console.error('Error loading config:', error);
+            }
+        }
+
+        async function startScan() {
+            const scanButton = document.getElementById('scanButton');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            
+            scanButton.disabled = true;
+            loading.style.display = 'block';
+            results.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        path: '/workspace',
+                        options: {
+                            include_exts: ['.py', '.js', '.jsx', '.ts', '.tsx', '.sol'],
+                            max_file_mb: 1.5,
+                            chunk_max_lines: 400
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                currentScanId = data.scan_id;
+                displayResults(data);
+                loadStats(); // Refresh stats
+                
+            } catch (error) {
+                showError('Scan failed: ' + error.message);
+            } finally {
+                scanButton.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            const scanSummary = document.getElementById('scanSummary');
+            const issuesList = document.getElementById('issuesList');
+            
+            // Display summary
+            scanSummary.innerHTML = `
+                <div class="success">
+                    <strong>Scan completed!</strong><br>
+                    Files scanned: ${data.summary.num_files}<br>
+                    Issues found: ${data.summary.num_issues}
+                </div>
+            `;
+            
+            // Display issues
+            if (data.issues.length === 0) {
+                issuesList.innerHTML = '<div class="success">No security issues found! 🎉</div>';
+            } else {
+                issuesList.innerHTML = data.issues.map(issue => `
+                    <div class="issue-card ${issue.severity}">
+                        <div class="issue-title">${issue.title}</div>
+                        <div class="issue-meta">
+                            <strong>Severity:</strong> ${issue.severity.toUpperCase()} | 
+                            <strong>File:</strong> ${issue.file_path} | 
+                            <strong>Line:</strong> ${issue.line || 'N/A'}
+                        </div>
+                        <div class="issue-description">${issue.description}</div>
+                        ${issue.suggestion ? `<div class="issue-suggestion"><strong>Suggestion:</strong> ${issue.suggestion}</div>` : ''}
+                        ${issue.fix ? `<button class="fix-button" onclick="applyFix('${issue.id || Math.random()}')">Apply Fix</button>` : ''}
+                    </div>
+                `).join('');
+            }
+            
+            results.style.display = 'block';
+        }
+
+        async function applyFix(issueId) {
+            // This would need the full issue object, simplified for demo
+            try {
+                const response = await fetch('/api/fix', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        issue: { id: issueId } // Simplified
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.applied) {
+                    showSuccess('Fix applied successfully!');
+                } else {
+                    showError('Fix failed: ' + result.reason);
+                }
+            } catch (error) {
+                showError('Fix application failed: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const results = document.getElementById('results');
+            results.innerHTML = `<div class="error">${message}</div>`;
+            results.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const results = document.getElementById('results');
+            results.innerHTML = `<div class="success">${message}</div>`;
+            results.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

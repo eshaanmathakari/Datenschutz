@@ -1,0 +1,105 @@
+{
+  "family": "datenschutz-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "datenschutz-extension",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/datenschutz-extension:latest",
+      "portMappings": [
+        {
+          "containerPort": 4001,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "MODEL_BACKEND",
+          "value": "none"
+        },
+        {
+          "name": "DEFAULT_SCAN_PATH",
+          "value": "/workspace"
+        },
+        {
+          "name": "LOG_RETENTION_DAYS",
+          "value": "14"
+        },
+        {
+          "name": "LLAMA_THREADS",
+          "value": "4"
+        },
+        {
+          "name": "HF_DEVICE_MAP",
+          "value": "auto"
+        },
+        {
+          "name": "HF_LOAD_IN_8BIT",
+          "value": "true"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "workspace",
+          "containerPath": "/workspace",
+          "readOnly": true
+        },
+        {
+          "sourceVolume": "models",
+          "containerPath": "/app/models",
+          "readOnly": true
+        },
+        {
+          "sourceVolume": "logs",
+          "containerPath": "/app/fix_logs"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/datenschutz-extension",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "python3 -c 'import sys; sys.exit(0)'"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "workspace",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-12345678",
+        "rootDirectory": "/workspace"
+      }
+    },
+    {
+      "name": "models",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-12345678",
+        "rootDirectory": "/models"
+      }
+    },
+    {
+      "name": "logs",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-12345678",
+        "rootDirectory": "/logs"
+      }
+    }
+  ]
+}
