@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Datenschutz VS Code Extension - AWS Infrastructure Setup Script
+# Datenschutz VS Code Extension - AWS Infrastructure Setup Script (No EFS)
 
 set -e
 
@@ -17,17 +17,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Setting up AWS infrastructure for Datenschutz VS Code Extension...${NC}"
+echo -e "${GREEN}Setting up AWS infrastructure for Datenschutz VS Code Extension (No EFS)...${NC}"
 
 # Check if AWS CLI is installed
 if ! command -v aws &> /dev/null; then
     echo -e "${RED}Error: AWS CLI is not installed. Please install it first.${NC}"
-    exit 1
-fi
-
-# Check if jq is installed
-if ! command -v jq &> /dev/null; then
-    echo -e "${RED}Error: jq is not installed. Please install it first.${NC}"
     exit 1
 fi
 
@@ -68,9 +62,9 @@ fi
 SUBNET_IDS_CSV=$(echo $SUBNET_IDS | tr ' ' ',')
 
 # Step 1: Deploy CloudFormation stack
-echo -e "${GREEN}Step 1: Deploying CloudFormation stack...${NC}"
+echo -e "${GREEN}Step 1: Deploying CloudFormation stack (No EFS)...${NC}"
 aws cloudformation deploy \
-    --template-file aws/cloudformation.yaml \
+    --template-file aws/cloudformation-no-efs.yaml \
     --stack-name ${STACK_NAME} \
     --parameter-overrides \
         VpcId=${VPC_ID} \
@@ -87,14 +81,12 @@ ECR_URI=$(aws cloudformation describe-stacks --stack-name ${STACK_NAME} --region
 ECS_CLUSTER=$(aws cloudformation describe-stacks --stack-name ${STACK_NAME} --region ${AWS_REGION} --query 'Stacks[0].Outputs[?OutputKey==`ECSClusterName`].OutputValue' --output text)
 ECS_SERVICE=$(aws cloudformation describe-stacks --stack-name ${STACK_NAME} --region ${AWS_REGION} --query 'Stacks[0].Outputs[?OutputKey==`ECSServiceName`].OutputValue' --output text)
 ALB_DNS=$(aws cloudformation describe-stacks --stack-name ${STACK_NAME} --region ${AWS_REGION} --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerDNS`].OutputValue' --output text)
-EFS_ID=$(aws cloudformation describe-stacks --stack-name ${STACK_NAME} --region ${AWS_REGION} --query 'Stacks[0].Outputs[?OutputKey==`EFSFileSystemId`].OutputValue' --output text)
 
 echo -e "${GREEN}Infrastructure setup completed successfully!${NC}"
 echo -e "${YELLOW}ECR Repository URI: ${ECR_URI}${NC}"
 echo -e "${YELLOW}ECS Cluster: ${ECS_CLUSTER}${NC}"
 echo -e "${YELLOW}ECS Service: ${ECS_SERVICE}${NC}"
 echo -e "${YELLOW}Load Balancer DNS: ${ALB_DNS}${NC}"
-echo -e "${YELLOW}EFS File System ID: ${EFS_ID}${NC}"
 
 # Step 3: Create environment file for deployment
 echo -e "${GREEN}Step 3: Creating environment file...${NC}"
@@ -104,21 +96,12 @@ ECR_REPOSITORY=datenschutz-extension
 ECS_CLUSTER=${ECS_CLUSTER}
 ECS_SERVICE=${ECS_SERVICE}
 TASK_DEFINITION=datenschutz-task
-EFS_FILE_SYSTEM_ID=${EFS_ID}
 ALB_DNS=${ALB_DNS}
 EOF
 
 echo -e "${GREEN}Environment file created: .env${NC}"
 
-# Step 4: Update task definition with actual values
-echo -e "${GREEN}Step 4: Updating task definition...${NC}"
-sed -i.bak "s/ACCOUNT_ID/${AWS_ACCOUNT_ID}/g" aws/task-definition.json
-sed -i.bak "s/REGION/${AWS_REGION}/g" aws/task-definition.json
-sed -i.bak "s/fs-12345678/${EFS_ID}/g" aws/task-definition.json
-
-echo -e "${GREEN}Task definition updated with actual values.${NC}"
-
-# Step 5: Instructions for next steps
+# Step 4: Instructions for next steps
 echo -e "${BLUE}Next steps:${NC}"
 echo -e "1. Build and push your Docker image:"
 echo -e "   ${YELLOW}docker build -t ${ECR_URI}:latest .${NC}"

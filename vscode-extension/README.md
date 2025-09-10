@@ -12,19 +12,6 @@ A powerful VS Code extension that provides AI-powered security vulnerability sca
 - **Compliance Mapping**: Maps findings to CWE, OWASP, and compliance frameworks
 - **Diagnostic Integration**: Shows security issues as VS Code diagnostics
 
-## Supported Vulnerability Types
-
-- SQL Injection
-- Hardcoded Secrets
-- Command Injection
-- Path Traversal
-- Cross-Site Scripting (XSS)
-- Weak Cryptographic Algorithms
-- Buffer Overflows
-- Insecure Deserialization
-- Server-Side Request Forgery (SSRF)
-- And many more...
-
 ## Installation
 
 1. Install the extension from VS Code Marketplace (when published)
@@ -146,6 +133,18 @@ npm run compile
 npm test
 ```
 
+## AWS Deployment
+
+Deploy the extension to AWS ECS for cloud-based scanning:
+
+```bash
+# Setup infrastructure
+./aws/setup-infrastructure.sh
+
+# Deploy application
+./aws/deploy.sh
+```
+
 ## Troubleshooting
 
 ### Model Not Loading
@@ -181,4 +180,3 @@ MIT License - see LICENSE file for details.
 - Uses VS Code Extension API
 - Integrates with local LLM models via Python
 - Maps to standard security frameworks (CWE, OWASP)
-
