@@ -24,7 +24,7 @@ Datenschutz automatically scans your code for security vulnerabilities and provi
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/datenschutz.git
+git clone https://github.com/eshaanmathakari/datenschutz.git
 cd datenschutz
 
 # Set up Python environment
@@ -111,7 +111,7 @@ We welcome contributions! Here's how to get started:
 
 ```bash
 # Fork and clone the repository
-git clone https://github.com/yourusername/datenschutz.git
+git clone https://github.com/eshaanmathakari/datenschutz.git
 cd datenschutz
 
 # Set up development environment
