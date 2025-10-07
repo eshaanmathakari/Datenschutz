@@ -41,11 +41,34 @@ def analyze_chunks(chunks: List[Dict[str, str]], options: Dict[str, Any]) -> Lis
 
 def _parse_output(output_text: str) -> List[Dict[str, Any]]:
     try:
-        data = json.loads(_extract_json(output_text))
+        # Extract and validate JSON before parsing
+        json_text = _extract_json(output_text)
+        if not json_text or json_text == "{}":
+            return []
+        
+        # Basic validation - check if it looks like valid JSON
+        if not json_text.strip().startswith('{') or not json_text.strip().endswith('}'):
+            return []
+        
+        data = json.loads(json_text)
+        
+        # Validate that data is a dictionary
+        if not isinstance(data, dict):
+            return []
+        
         out = data.get("issues", [])
+        
+        # Validate that issues is a list
+        if not isinstance(out, list):
+            return []
+        
         # Normalize schema
         normed: List[Dict[str, Any]] = []
         for it in out:
+            # Validate that each issue is a dictionary
+            if not isinstance(it, dict):
+                continue
+                
             normed.append({
                 "title": it.get("title") or "Issue",
                 "description": it.get("description") or "",
@@ -56,6 +79,8 @@ def _parse_output(output_text: str) -> List[Dict[str, Any]]:
                 "fix": it.get("fix"),  # {'before': str, 'after': str} or None
             })
         return normed
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return []
     except Exception:
         return []
 

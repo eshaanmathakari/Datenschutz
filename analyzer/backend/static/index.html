@@ -3,20 +3,153 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Local Code Analyzer</title>
+    <title>Datenschutz - AI-Powered Security Analysis</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div class="container">
-      <h2>Local Code Analyzer</h2>
-      <div class="controls">
-        <input id="path" type="text" placeholder="Path to scan" />
-        <button id="scanBtn">Start Scan</button>
+    <header class="header">
+      <div class="header-content">
+        <div class="logo-section">
+          <img src="/logo.png" alt="Datenschutz Logo" class="logo" />
+          <div class="brand">
+            <h1>Datenschutz</h1>
+            <p class="tagline">AI-Powered Security Code Analysis</p>
+          </div>
+        </div>
+        <div class="status-indicator">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Ready</span>
+        </div>
       </div>
-      <pre id="output" class="terminal"></pre>
-    </div>
+    </header>
+
+    <main class="main">
+      <div class="container">
+        <section class="scan-section">
+          <div class="section-header">
+            <h2>Security Analysis</h2>
+            <p>Scan your codebase for security vulnerabilities and get AI-powered remediation suggestions</p>
+          </div>
+          
+          <div class="controls">
+            <div class="input-group">
+              <label for="path">Directory or File Path</label>
+              <input id="path" type="text" placeholder="./analyzer/backend" value="./analyzer/backend" />
+            </div>
+            
+            <div class="options-grid">
+              <div class="option-group">
+                <label for="reasoning">Analysis Depth</label>
+                <select id="reasoning">
+                  <option value="low">Fast (Low)</option>
+                  <option value="medium" selected>Balanced (Medium)</option>
+                  <option value="high">Thorough (High)</option>
+                </select>
+              </div>
+              
+              <div class="option-group">
+                <label for="extensions">File Extensions</label>
+                <select id="extensions">
+                  <option value="all" selected>All Supported</option>
+                  <option value="python">Python Only</option>
+                  <option value="web">Web (JS/TS)</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="custom-extensions" id="customExtensions" style="display: none;">
+              <input type="text" id="customExtInput" placeholder=".py, .js, .ts, .java" />
+            </div>
+            
+            <button id="scanBtn" class="scan-button">
+              <svg class="scan-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27,6.96 12,12.01 20.73,6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+              Start Security Scan
+            </button>
+          </div>
+        </section>
+
+        <section class="results-section">
+          <div class="results-header">
+            <h3>Scan Results</h3>
+            <div class="results-summary" id="resultsSummary" style="display: none;">
+              <div class="summary-stats">
+                <div class="stat">
+                  <span class="stat-number" id="filesScanned">0</span>
+                  <span class="stat-label">Files Scanned</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-number critical" id="criticalIssues">0</span>
+                  <span class="stat-label">Critical</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-number high" id="highIssues">0</span>
+                  <span class="stat-label">High</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-number medium" id="mediumIssues">0</span>
+                  <span class="stat-label">Medium</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-number low" id="lowIssues">0</span>
+                  <span class="stat-label">Low</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="issues-container" id="issuesContainer">
+            <div class="loading" id="loading" style="display: none;">
+              <div class="spinner"></div>
+              <p>Analyzing code for security vulnerabilities...</p>
+            </div>
+            
+            <div class="welcome-message" id="welcomeMessage">
+              <div class="welcome-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="M9 12l2 2 4-4"/>
+                </svg>
+              </div>
+              <h4>Ready to Scan</h4>
+              <p>Enter a path above and click "Start Security Scan" to begin analyzing your code for security vulnerabilities.</p>
+              <div class="features">
+                <div class="feature">
+                  <span class="feature-icon">🔍</span>
+                  <span>AI-Powered Analysis</span>
+                </div>
+                <div class="feature">
+                  <span class="feature-icon">🛡️</span>
+                  <span>OWASP Top 10 Coverage</span>
+                </div>
+                <div class="feature">
+                  <span class="feature-icon">🔧</span>
+                  <span>Automated Fixes</span>
+                </div>
+                <div class="feature">
+                  <span class="feature-icon">📊</span>
+                  <span>Compliance Reports</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>&copy; 2024 Datenschutz. Built for Security, Designed for Scale.</p>
+      </div>
+    </footer>
+
     <script src="/app.js"></script>
   </body>
-  </html>
+</html>
 
 

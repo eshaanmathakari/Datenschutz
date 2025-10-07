@@ -66,8 +66,8 @@ class RuleBasedDetector:
             "insecure_random": [
                 r"random\.random\(\)",  # random.random()
                 r"random\.randint\(0,\s*100\)",  # predictable random
-                r"time\.time\(\)",  # time-based random
-                r"datetime\.now\(\)",  # datetime-based random
+                r"random\.choice\(.*\)",  # random.choice for security
+                r"random\.uniform\(.*\)",  # random.uniform for security
             ],
             "xss": [
                 r"innerHTML\s*=\s*.*\+.*",  # innerHTML with concatenation
@@ -84,7 +84,8 @@ class RuleBasedDetector:
                 r"pickle\.loads\(.*\)",  # pickle.loads
                 r"pickle\.load\(.*\)",  # pickle.load
                 r"yaml\.load\(.*\)",  # yaml.load
-                r"json\.loads\(.*\)",  # json.loads with untrusted input
+                # Note: json.loads is generally safe for internal use, but can be dangerous with untrusted input
+                # We'll focus on the more dangerous deserialization methods
             ],
             "insufficient_logging": [
                 r"#\s*TODO.*log",  # TODO comments about logging
@@ -116,6 +117,10 @@ class RuleBasedDetector:
         """Detect vulnerabilities in code content using rule-based patterns."""
         issues = []
         
+        # Skip analysis for rule-based detector itself to avoid false positives
+        if "rule_based_detector.py" in file_path:
+            return issues
+        
         # Add line numbers to content for better reporting
         lines = content.split('\n')
         
@@ -131,6 +136,10 @@ class RuleBasedDetector:
                         line_content = lines[line_num - 1].strip()
                     else:
                         line_content = match.group(0)
+                    
+                    # Skip if this is a comment or docstring (not actual code)
+                    if line_content.strip().startswith('#') or line_content.strip().startswith('"""') or line_content.strip().startswith("'''"):
+                        continue
                     
                     # Create issue
                     issue = {
@@ -212,10 +221,15 @@ class RuleBasedDetector:
         
         elif vuln_type == "hardcoded_secrets":
             # Replace hardcoded secret with environment variable
-            if "password" in line_content:
+            if "password" in line_content and "=" in line_content:
                 before = line_content
-                after = line_content.replace("password = \"", "password = os.getenv(\"").replace("\"", "\", \"\")")
-                return {"before": before, "after": after}
+                # Extract the variable name and value
+                parts = line_content.split("=", 1)
+                if len(parts) == 2:
+                    var_name = parts[0].strip()
+                    var_value = parts[1].strip()
+                    after = f"{var_name} = os.getenv(\"{var_name.upper()}\", \"\")"
+                    return {"before": before, "after": after}
         
         elif vuln_type == "insecure_random":
             # Replace random.random() with secrets.token_hex()
